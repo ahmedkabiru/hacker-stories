@@ -1,31 +1,30 @@
 import './App.css';
 import React from "react";
 
-const  title = 'React';
-const  welcome = {
-    greeting : 'Hey',
-    title : 'React'
+const title = 'React';
+const welcome = {
+    greeting: 'Hey',
+    title: 'React'
 };
 
 
-
-function  getTitle(title){
+function getTitle(title) {
     return title;
 }
 
-const useSemiPersistentState = (key,initialState) => {
+const useSemiPersistentState = (key, initialState) => {
     const [value, setValue] = React.useState(
         localStorage.getItem(key) || initialState
     );
     React.useEffect(() => {
         localStorage.setItem(key, value);
-    }, [value,key]);
+    }, [value, key]);
     return [value, setValue]
 };
 
 const App = () => {
-     console.log('App Renders')
-    const  initialStories = [
+    console.log('App Renders')
+    const initialStories = [
         {
             title: 'React',
             url: 'https://reactjs.org/',
@@ -42,80 +41,101 @@ const App = () => {
             objectID: 1,
         },
     ]
-     const  [searchTerm, setSearchTerm] = useSemiPersistentState('search','');
-     const  [stories, setStories] = React.useState(initialStories);
-     const  handleSearch= (event) => {
+    const [stories, setStories] = React.useState([]);
+    const [isLoading, setIsLoading] = React.useState(false)
+    const [isError, setIsError] = React.useState(false)
+    const getAsyncStories = () => new Promise(resolve =>  {
+          setTimeout(() => resolve(
+              { data : { stories: initialStories}}
+          ), 2000)
+        }
+        )
+    React.useEffect(() =>{
+        setIsLoading(true)
+        getAsyncStories().then(result =>{
+            setStories(result.data.stories)
+            setIsLoading(false)
+        }).catch(() => setIsError(true))
+    }, []);
+
+    const [searchTerm, setSearchTerm] = useSemiPersistentState('search', '');
+    const handleSearch = (event) => {
         setSearchTerm(event.target.value);
     }
-    const handleRemoveStory= (item) => {
-         const  newStories = stories.filter((story) => {
-            return  item.objectID !== story.objectID
-         })
+    const handleRemoveStory = (item) => {
+        const newStories = stories.filter((story) => {
+            return item.objectID !== story.objectID
+        })
         setStories(newStories);
     }
-    const  searchStories = stories.filter((story) =>{
+    const searchStories = stories.filter((story) => {
         return story.title.toLowerCase().includes(searchTerm.toLowerCase());
     })
-  return (
-    <div>
-      <h1> My Hacker Stories</h1>
-       <InputWithLabel id="search" label="Search" value={searchTerm} isFocused onInputChange={handleSearch} >
-           <strong>Search:</strong>
-       </InputWithLabel>
-      <h1> {welcome.greeting} { welcome.title }</h1>
-       {/*<Search search = {searchTerm} onSearch = {handleSearch}/>*/}
-      <hr/>
-        <List list = {searchStories} onRemoveItem  = {handleRemoveStory}/>
-    </div>
-  );
+    return (
+        <div>
+            <h1> My Hacker Stories</h1>
+            <InputWithLabel id="search" label="Search" value={searchTerm} isFocused onInputChange={handleSearch}>
+                <strong>Search:</strong>
+            </InputWithLabel>
+            <h1> {welcome.greeting} {welcome.title}</h1>
+            {/*<Search search = {searchTerm} onSearch = {handleSearch}/>*/}
+            <hr/>
+            {isError && <p> Something went wrong </p>}
+            { isLoading ? (
+                <p>Loading...</p>
+            ) : (
+                <List list={searchStories} onRemoveItem={handleRemoveStory}/>
+            )}
+        </div>
+    );
 }
 
-const Search =  ({search, onSearch}) => {
+const Search = ({search, onSearch}) => {
     console.log('Search Renders')
-   // const {search, onSearch} = props;
+    // const {search, onSearch} = props;
 
     // const  handleChange = (event) =>{
     //    //setSearchTerm(event.target.value);
     //    props.onSearch(event);
     // }
-    return(
-         <>
+    return (
+        <>
             <label htmlFor="search"> Search: </label>
-            <input id="search" type="text" value={search}  onChange={onSearch}/>
+            <input id="search" type="text" value={search} onChange={onSearch}/>
         </>
     )
 }
 
 
-const  InputWithLabel = ({id, value, type ='text', isFocused, onInputChange, children}) =>{
+const InputWithLabel = ({id, value, type = 'text', isFocused, onInputChange, children}) => {
 
-    const  inputRef = React.useRef();
+    const inputRef = React.useRef();
 
     React.useEffect(() => {
-        if(isFocused && inputRef.current){
+        if (isFocused && inputRef.current) {
             inputRef.current.focus()
         }
     }, [isFocused])
 
-    return(
+    return (
         <>
             <label htmlFor={id}>{children}</label>
-            <input  ref={inputRef} id={id} type={type} value={value} onChange={onInputChange} />
+            <input ref={inputRef} id={id} type={type} value={value} onChange={onInputChange}/>
         </>
-        )
+    )
 
 
 };
 
-function  List({list,onRemoveItem}){
+function List({list, onRemoveItem}) {
     console.log('List Renders')
     return (<ul>
-        {list.map(  (item)  => {
-            return (
-                <Item key={item.objectID} item={item} onRemoveItem={onRemoveItem}/>
-            )
-        })}
-    </ul>
+            {list.map((item) => {
+                return (
+                    <Item key={item.objectID} item={item} onRemoveItem={onRemoveItem}/>
+                )
+            })}
+        </ul>
     );
 }
 
@@ -123,7 +143,7 @@ const Item = ({item, onRemoveItem}) => {
     // const  handleRemoveItem =() =>{
     //     onRemoveItem(item)
     // }
-    return(
+    return (
         <li>
                     <span>
                             <a href={item.url}>{title}</a>
@@ -137,7 +157,7 @@ const Item = ({item, onRemoveItem}) => {
                 </button>
             </span>
         </li>
-);
+    );
 }
 
 
