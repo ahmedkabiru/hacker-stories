@@ -1,16 +1,10 @@
-import './App.css';
+//import './App.css';
 import React from "react";
+import axios from "axios";
+import styles from  "./App.module.css"
+import cs from "classnames"
 
-const title = 'React';
-const welcome = {
-    greeting: 'Hey',
-    title: 'React'
-};
-
-
-function getTitle(title) {
-    return title;
-}
+const  API_ENDPOINT = 'https://hn.algolia.com/api/v1/search?query='
 
 const useSemiPersistentState = (key, initialState) => {
     const [value, setValue] = React.useState(
@@ -55,53 +49,41 @@ const  storiesReducer = (state, action) =>{
     }
 };
 const App = () => {
-    console.log('App Renders')
-    const initialStories = [
-        {
-            title: 'React',
-            url: 'https://reactjs.org/',
-            author: 'Jordan Walke',
-            num_comments: 3,
-            points: 4,
-            objectID: 0,
-        }, {
-            title: 'Redux',
-            url: 'https://redux.js.org/',
-            author: 'Dan Abramov, Andrew Clark',
-            num_comments: 2,
-            points: 5,
-            objectID: 1,
-        },
-    ]
     const [stories, dispatchStories] = React.useReducer(
         storiesReducer,
         {data: [], isLoading: false, isError: false}
     );
-  //  const [stories, setStories] = React.useState([]);
-   // const [isLoading, setIsLoading] = React.useState(false)
-   // const [isError, setIsError] = React.useState(false)
-    const getAsyncStories = () => new Promise(resolve =>  {
-          setTimeout(() => resolve(
-              { data : { stories: initialStories}}
-          ), 2000)
-        }
-        )
-    // const getAsyncStories = () =>
-    //     new Promise((resolve, reject) => setTimeout(reject, 2000));
-    React.useEffect(() =>{
-        dispatchStories({ type: 'STORIES_FETCH_INIT' })
-        getAsyncStories().then(result =>{
-           // setStories(result.data.stories)
+    const [searchTerm, setSearchTerm] = useSemiPersistentState('search', 'React');
+
+    const [url, setUrl] = React.useState(`${API_ENDPOINT}${searchTerm}`);
+
+   const  handleFetchStories = React.useCallback(async () => {
+        //if(!searchTerm) return;
+        dispatchStories({ type: 'STORIES_FETCH_INIT' });
+        try{
+            const  result =  await axios.get(url);
             dispatchStories({
                 type: 'STORIES_FETCH_SUCCESS',
-                payload: result.data.stories
-            })
-        }).catch(() => dispatchStories({ type: 'STORIES_FETCH_FAILURE'}))
-    }, []);
+                payload: result.data.hits,
+            });
 
-    const [searchTerm, setSearchTerm] = useSemiPersistentState('search', '');
-    const handleSearch = (event) => {
+        }catch{
+            dispatchStories({ type: 'STORIES_FETCH_FAILURE'});
+       }
+
+    }, [url]);
+
+    React.useEffect(() => {
+        handleFetchStories();
+    }, [handleFetchStories]);
+
+    const handleSearchInput = (event) => {
         setSearchTerm(event.target.value);
+    }
+
+    const handleSearchSubmit = (event) =>{
+        setUrl(`${API_ENDPOINT}${searchTerm}`);
+        event.preventDefault();
     }
     const handleRemoveStory = (item) => {
         dispatchStories({
@@ -109,36 +91,41 @@ const App = () => {
             payload: item
         });
     }
-    const searchStories = stories.data.filter((story) => {
-        return story.title.toLowerCase().includes(searchTerm.toLowerCase());
-    })
+
     return (
-        <div>
-            <h1> My Hacker Stories</h1>
-            <InputWithLabel id="search" label="Search" value={searchTerm} isFocused onInputChange={handleSearch}>
-                <strong>Search:</strong>
-            </InputWithLabel>
-            <h1> {welcome.greeting} {welcome.title}</h1>
-            {/*<Search search = {searchTerm} onSearch = {handleSearch}/>*/}
+        <div className={styles.container}>
+            <h1 className={styles.headlinePrimary}> My Hacker Stories</h1>
+
+            <SearchForm  searchTerm={searchTerm}
+                         handleSearchInput={handleSearchInput}
+                         handleSearchSubmit={handleSearchSubmit}
+            />
+
             <hr/>
             {stories.isError && <p> Something went wrong </p>}
             { stories.isLoading ? (
                 <p>Loading...</p>
             ) : (
-                <List list={searchStories} onRemoveItem={handleRemoveStory}/>
+                <List list={stories.data} onRemoveItem={handleRemoveStory}/>
             )}
         </div>
     );
 }
 
+const SearchForm = ({searchTerm,handleSearchInput,handleSearchSubmit}) => {
+
+    return(
+        <form onSubmit={handleSearchSubmit} className={styles.searchForm}>
+            <InputWithLabel id="search" label="Search" value={searchTerm} isFocused onInputChange={handleSearchInput}>
+                <strong>Search:</strong>
+            </InputWithLabel>
+
+            <button type="submit" disabled={!searchTerm} className={`${styles.button} ${styles.button_large}`}>Submit</button>
+        </form>
+    )
+}
 const Search = ({search, onSearch}) => {
     console.log('Search Renders')
-    // const {search, onSearch} = props;
-
-    // const  handleChange = (event) =>{
-    //    //setSearchTerm(event.target.value);
-    //    props.onSearch(event);
-    // }
     return (
         <>
             <label htmlFor="search"> Search: </label>
@@ -160,8 +147,8 @@ const InputWithLabel = ({id, value, type = 'text', isFocused, onInputChange, chi
 
     return (
         <>
-            <label htmlFor={id}>{children}</label>
-            <input ref={inputRef} id={id} type={type} value={value} onChange={onInputChange}/>
+            <label htmlFor={id} className={styles.label}>{children}</label>
+            <input ref={inputRef} id={id} type={type} value={value} onChange={onInputChange} className={styles.input}/>
         </>
     )
 
@@ -181,19 +168,16 @@ function List({list, onRemoveItem}) {
 }
 
 const Item = ({item, onRemoveItem}) => {
-    // const  handleRemoveItem =() =>{
-    //     onRemoveItem(item)
-    // }
     return (
-        <li>
-                    <span>
-                            <a href={item.url}>{title}</a>
+        <li className={styles.item}>
+                    <span style={{ width: '40%' }}>
+                            <a href={item.url}>{item.title}</a>
                     </span>
-            <span>{item.author}</span>
-            <span>{item.num_comments}</span>
-            <span>{item.points}</span>
-            <span>
-                <button type="button" onClick={() => onRemoveItem(item)}>
+            <span style={{ width: '30%' }}>{item.author}</span>
+            <span style={{ width: '10%' }}>{item.num_comments}</span>
+            <span style={{ width: '10%' }}>{item.points}</span>
+            <span style={{ width: '10%' }}>
+                <button type="button" onClick={() => onRemoveItem(item)} className={cs(styles.button,styles.button_small)}>
                     Dismiss
                 </button>
             </span>
